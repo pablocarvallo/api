@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#f2f4f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#05070c" media="(prefers-color-scheme: dark)">
+<title>Emparejar · Apps domésticas</title>
+<style>
+  :root { --fondo:#f2f4f8; --superficie:#fff; --tinta:#0b1220; --tinta-2:#556074; --acento:#1f5eff; --relleno:rgba(118,128,150,.14);
+    --positivo:#0e7a42; --negativo:#d92d3a; --brillo:rgba(47,98,250,.2); --sombra:0 0 0 .5px rgba(10,18,40,.12),0 10px 30px rgba(10,18,40,.1); color-scheme:light dark; }
+  @media (prefers-color-scheme: dark) { :root { --fondo:#05070c; --superficie:#121826; --tinta:#f2f5fb; --tinta-2:#a3adc2; --acento:#5b8bff;
+    --relleno:rgba(150,160,185,.18); --positivo:#3dd68c; --negativo:#ff6b6b; --brillo:rgba(91,139,255,.26); --sombra:0 0 0 .5px rgba(0,0,0,.6),0 12px 32px rgba(0,0,0,.45); } }
+  html { touch-action: pan-x pan-y; }
+  body { margin:0; min-height:100vh; font:400 17px/22px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; color:var(--tinta);
+    background: radial-gradient(120% 55% at 0% -8%, var(--brillo), transparent 62%), var(--fondo); -webkit-font-smoothing:antialiased; }
+  main { max-width:440px; margin:0 auto; padding:64px 16px 40px; }
+  h1 { margin:0; font-size:34px; line-height:41px; font-weight:700; letter-spacing:-.4px; }
+  .ante { display:block; font-size:13px; line-height:18px; font-weight:600; color:var(--tinta-2); }
+  .tarjeta { margin-top:20px; padding:20px; border-radius:26px; background:var(--superficie); box-shadow:var(--sombra); }
+  label { display:block; font-size:13px; line-height:18px; font-weight:600; color:var(--tinta-2); margin-bottom:8px; }
+  input { box-sizing:border-box; width:100%; padding:14px 16px; border:0; border-radius:16px; background:var(--relleno); color:var(--tinta);
+    font:600 24px/30px ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif; letter-spacing:2px; text-transform:uppercase; text-align:center; }
+  input:focus { outline:3px solid var(--acento); outline-offset:2px; }
+  button { appearance:none; border:0; cursor:pointer; width:100%; min-height:50px; margin-top:14px; border-radius:999px; background:#1f5eff; color:#fff;
+    font-family:inherit; font-size:17px; line-height:22px; font-weight:600; }
+  button:disabled { opacity:.5; }
+  .secundario { background:var(--relleno); color:var(--acento); }
+  .nota { margin:12px 0 0; font-size:15px; line-height:20px; color:var(--tinta-2); }
+  .error { color:var(--negativo); }
+  .llave { margin-top:8px; padding:14px; border-radius:16px; background:var(--relleno); font:500 14px/20px ui-monospace, Menlo, monospace; word-break:break-all; user-select:all; }
+  .ok { color:var(--positivo); font-weight:600; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <span class="ante">Apps domésticas</span>
+  <h1>Emparejar</h1>
+
+  <form class="tarjeta" id="formulario">
+    <label for="codigo">Código de la tarea «Llaves»</label>
+    <input id="codigo" name="codigo" autocomplete="one-time-code" inputmode="text" maxlength="9" placeholder="ABCD-2345" required>
+    <button type="submit" id="canjear">Canjear</button>
+    <p class="nota" id="mensaje">El código vale 15 minutos y sirve una sola vez.</p>
+  </form>
+
+  <section class="tarjeta" id="resultado" hidden>
+    <p class="ok" id="titulo"></p>
+    <label>Llave (se muestra solo ahora)</label>
+    <div class="llave" id="llave"></div>
+    <button type="button" id="copiar">Copiar la llave</button>
+    <p class="nota" id="instrucciones"></p>
+  </section>
+</main>
+<script>
+  // Sin zoom con dos dedos, como las demás apps
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (t) { document.addEventListener(t, function (e) { e.preventDefault(); }, { passive: false }); });
+
+  var INSTRUCCIONES = {
+    atajos: 'Pégala en Atajos, en el encabezado Authorization de la acción que envía los avisos, así: Bearer seguido de un espacio y la llave.',
+    widget: 'Pégala en el script del widget de Scriptable, en la línea LLAVE.',
+    dispositivo: 'Pégala en la app cuando la pida en Ajustes → Conexión. Queda guardada en ese iPhone.'
+  };
+  var form = document.getElementById('formulario'), entrada = document.getElementById('codigo'), boton = document.getElementById('canjear');
+  var mensaje = document.getElementById('mensaje'), llave = '';
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    boton.disabled = true; mensaje.className = 'nota'; mensaje.textContent = 'Canjeando…';
+    try {
+      var r = await fetch('/api/emparejar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo: entrada.value }) });
+      var d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'No se pudo canjear');
+      llave = d.llave;
+      document.getElementById('titulo').textContent = 'Listo: «' + d.nombre + '» quedó emparejado (id ' + d.id + ').';
+      document.getElementById('llave').textContent = d.llave;
+      document.getElementById('instrucciones').textContent = INSTRUCCIONES[d.tipo] || '';
+      form.hidden = true;
+      document.getElementById('resultado').hidden = false;
+    } catch (err) {
+      mensaje.className = 'nota error'; mensaje.textContent = err.message;
+      boton.disabled = false;
+    }
+  });
+  document.getElementById('copiar').addEventListener('click', async function () {
+    try { await navigator.clipboard.writeText(llave); this.textContent = 'Copiada'; }
+    catch (e) { this.textContent = 'Mantén presionada la llave para copiarla'; }
+  });
+</script>
+</body>
+</html>

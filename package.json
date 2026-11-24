@@ -1,0 +1,9 @@
+{
+  "name": "domesticas-api",
+  "private": true,
+  "type": "module",
+  "description": "Función de las apps domésticas: guarda el token de GitHub y da acceso a pablocarvallo/datos con llaves por dispositivo.",
+  "scripts": {
+    "test": "node --test pruebas/*.test.mjs"
+  }
+}
