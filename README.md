@@ -9,7 +9,7 @@ llave, que se puede revocar sin tocar nada más. Los datos viven en el repositor
 | Ruta | Para qué | Llave |
 | --- | --- | --- |
 | `GET /api/estado` | Revisar que la función está publicada y tiene el token | Ninguna |
-| `POST /api/aviso` | Atajos entrega un correo de aviso: `{ "fuente": "bancochile" \| "copec", "asunto": "…", "texto": "…" }` | Atajos |
+| `POST /api/aviso` | Atajos entrega un correo de aviso: `{ "fuente": "bancochile" \| "copec", "asunto": "…", "texto": "…" }`. Queda en `avisos/AAAA-MM/<huella>.json`; si ese correo ya llegó, responde 200 con `repetido` | Atajos |
 | `GET /api/datos?archivo=…` | Leer un archivo de datos: `{ contenido, sha }` | Dispositivo |
 | `GET /api/datos?carpeta=movimientos` | Meses con movimientos | Dispositivo |
 | `PUT /api/datos?archivo=…` | Guardar `{ contenido, sha, mensaje }`; responde 409 si otro dispositivo lo cambió antes | Dispositivo |
@@ -24,7 +24,7 @@ La llave va en el encabezado `Authorization: Bearer <llave>`. Archivos permitido
 ## Configuración en Vercel
 
 - Variable `GITHUB_TOKEN` (tipo Secret, Production): token de grano fino solo para `pablocarvallo/datos`, con
-  Contents e Issues en lectura y escritura. Vence el 23/11/2027 o en la fecha que se haya elegido: renovarlo antes y
+  Contents en lectura y escritura (Issues ya no se usa). Vence el 23/11/2027 o en la fecha que se haya elegido: renovarlo antes y
   reemplazar el valor.
 - Opcional: `DATOS_REPO` si el repositorio de datos cambia de nombre.
 
@@ -47,6 +47,10 @@ la acción **Obtener contenido de la URL**:
 - Encabezados: `Authorization` = `Bearer ` y la llave de tipo `atajos`
 - Cuerpo de la solicitud: JSON con tres campos de texto: `fuente` (`bancochile` o `copec`), `asunto` (el asunto
   del correo) y `texto` (el contenido del correo)
+
+Las dos automatizaciones se activan con cada correo reenviado desde la cuenta propia, así que cada correo llega dos
+veces. La función guarda cada aviso con la huella de su asunto y texto, y la segunda vez lo reconoce y no lo guarda.
+Los avisos no se dejan como issues para que GitHub no mande un correo por cada uno.
 
 ## Pruebas
 

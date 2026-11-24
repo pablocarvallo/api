@@ -7,10 +7,9 @@ process.env.GITHUB_TOKEN = 'token-de-prueba';
 const h = (t) => createHash('sha256').update(t).digest('hex');
 
 // ---------- GitHub falso ----------
-let archivos, issues, version;
+let archivos, version;
 function reiniciar() {
   version = 1;
-  issues = [];
   archivos = {
     'dispositivos.json': { llaves: [
       { id: 'a1', nombre: 'iPhone', tipo: 'dispositivo', hash: h('llave-iphone') },
@@ -26,7 +25,6 @@ function reiniciar() {
 const json = (status, cuerpo) => ({ ok: status < 400, status, json: async () => cuerpo });
 globalThis.fetch = async (url, op = {}) => {
   const ruta = decodeURI(url.replace('https://api.github.com/repos/pablocarvallo/datos', ''));
-  if (ruta === '/issues' && op.method === 'POST') { const b = JSON.parse(op.body); issues.push(b); return json(201, { number: issues.length }); }
   const m = /^\/contents\/(.+)$/.exec(ruta);
   if (m && (!op.method || op.method === 'GET')) {
     if (!(m[1] in archivos)) return json(404, { message: 'Not Found' });
@@ -34,6 +32,8 @@ globalThis.fetch = async (url, op = {}) => {
   }
   if (m && op.method === 'PUT') {
     const b = JSON.parse(op.body);
+    // Como GitHub: sin sha sobre un archivo que ya existe, 422; con un sha viejo, 409
+    if ((m[1] in archivos) && !b.sha) return json(422, { message: 'Invalid request.\n\n"sha" wasn\'t supplied.' });
     if ((m[1] in archivos) && b.sha !== archivos.__sha[m[1]]) return json(409, { message: 'sha does not match' });
     archivos[m[1]] = JSON.parse(Buffer.from(b.content, 'base64').toString('utf8'));
     archivos.__sha[m[1]] = 'sha' + (++version);
@@ -71,17 +71,43 @@ test('Una llave revocada o inventada no entra', async () => {
   assert.equal(r.status, 401);
 });
 
-test('Atajos entrega un aviso y queda como issue con su fuente', async () => {
+const avisosGuardados = () => Object.keys(archivos).filter((k) => k.startsWith('avisos/'));
+
+test('Atajos entrega un aviso y queda como archivo con su fuente', async () => {
   const r = await llamar(aviso, { method: 'POST', llave: 'llave-atajos', body: { fuente: 'copec', asunto: 'Tu compra', texto: 'Monto $5.000' } });
   assert.equal(r.status, 201);
-  assert.equal(issues[0].title, 'Tu compra');
-  assert.match(issues[0].body, /^Fuente: copec\nMonto \$5\.000/);
+  assert.match(r.cuerpo.aviso, /^\d{4}-\d{2}\/[0-9a-f]{16}$/);
+  const a = archivos['avisos/' + r.cuerpo.aviso + '.json'];
+  assert.deepEqual([a.fuente, a.asunto, a.texto, a.enviado_por], ['copec', 'Tu compra', 'Monto $5.000', 'Atajos']);
+  assert.ok(Date.parse(a.recibido));
+});
+
+test('El mismo correo enviado por las dos automatizaciones se guarda una vez', async () => {
+  const correo = { asunto: 'Cargo en Cuenta', texto: 'Te informamos que se ha realizado una compra por $4.063' };
+  const r1 = await llamar(aviso, { method: 'POST', llave: 'llave-atajos', body: { ...correo, fuente: 'bancochile' } });
+  const r2 = await llamar(aviso, { method: 'POST', llave: 'llave-atajos', body: { ...correo, fuente: 'copec', texto: correo.texto + '\n' } });
+  assert.equal(r1.status, 201);
+  assert.equal(r2.status, 200);
+  assert.equal(r2.cuerpo.repetido, true);
+  assert.equal(r2.cuerpo.aviso, r1.cuerpo.aviso);
+  assert.equal(avisosGuardados().length, 1);
+  assert.equal(archivos['avisos/' + r1.cuerpo.aviso + '.json'].fuente, 'bancochile');
+});
+
+test('Correos distintos quedan en archivos distintos', async () => {
+  await llamar(aviso, { method: 'POST', llave: 'llave-atajos', body: { texto: 'compra por $1.000' } });
+  await llamar(aviso, { method: 'POST', llave: 'llave-atajos', body: { texto: 'compra por $2.000' } });
+  assert.equal(avisosGuardados().length, 2);
 });
 
 test('Atajos puede enviar el aviso como texto simple', async () => {
   const r = await llamar(aviso, { method: 'POST', llave: 'llave-atajos', body: 'Te informamos que se ha realizado una compra' });
   assert.equal(r.status, 201);
-  assert.equal(issues[0].title, 'Aviso');
+  assert.equal(archivos['avisos/' + r.cuerpo.aviso + '.json'].fuente, '');
+});
+
+test('Los avisos no se pueden leer ni escribir desde las apps', async () => {
+  assert.equal((await llamar(datos, { method: 'PUT', llave: 'llave-iphone', query: { archivo: 'avisos/2026-11/abc.json' }, body: { contenido: {} } })).status, 400);
 });
 
 test('La llave de Atajos no lee datos, y la de widget solo el resumen', async () => {
