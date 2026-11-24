@@ -28,6 +28,11 @@ globalThis.fetch = async (url, op = {}) => {
   const m = /^\/contents\/(.+)$/.exec(ruta);
   if (m && (!op.method || op.method === 'GET')) {
     if (!(m[1] in archivos)) return json(404, { message: 'Not Found' });
+    // Como GitHub con archivos de más de 1 MB: sin contenido, salvo que se pida el archivo tal cual
+    if (archivos.__grandes && archivos.__grandes.includes(m[1])) {
+      if (/raw/.test((op.headers || {}).Accept || '')) return json(200, archivos[m[1]]);
+      return json(200, { sha: archivos.__sha[m[1]], content: '', encoding: 'none', size: 1200000 });
+    }
     return json(200, { sha: archivos.__sha[m[1]], content: Buffer.from(JSON.stringify(archivos[m[1]])).toString('base64') });
   }
   if (m && op.method === 'PUT') {
@@ -126,6 +131,18 @@ test('Un dispositivo lee y escribe con control de versión', async () => {
   const v = await llamar(datos, { method: 'PUT', llave: 'llave-iphone', query: { archivo: 'cuentas.json' }, body: { contenido: { cuentas: [2] }, sha: l.cuerpo.sha } });
   assert.equal(v.status, 409);
   assert.deepEqual(archivos['cuentas.json'], { cuentas: [1] });
+});
+
+test('Cartelera se lee y escribe, aunque pase de 1 MB', async () => {
+  archivos['cartelera.json'] = { items: { 'tv:1': { id: 1, type: 'tv', title: 'Serie', status: 'want' } } };
+  archivos.__sha['cartelera.json'] = 'sha-cart';
+  archivos.__grandes = ['cartelera.json'];
+  const l = await llamar(datos, { llave: 'llave-iphone', query: { archivo: 'cartelera.json' } });
+  assert.equal(l.status, 200);
+  assert.equal(l.cuerpo.sha, 'sha-cart');
+  assert.equal(l.cuerpo.contenido.items['tv:1'].title, 'Serie');
+  const e = await llamar(datos, { method: 'PUT', llave: 'llave-iphone', query: { archivo: 'cartelera.json' }, body: { contenido: { items: {} }, sha: 'sha-cart' } });
+  assert.equal(e.status, 200);
 });
 
 test('Archivos fuera de la lista y archivos calculados', async () => {

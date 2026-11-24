@@ -6,7 +6,7 @@ import { preparar, responder, cuerpo, manejar, error } from '../lib/http.js';
 import { autorizar } from '../lib/llaves.js';
 import { leerArchivo, escribirArchivo } from '../lib/github.js';
 
-const ARCHIVOS = /^(?:cuentas|pagos|creditos|gastos-medicos|mesadas|ciclos|rutinas|maletas|resumen|salud)\.json$|^movimientos\/\d{4}-(?:0[1-9]|1[0-2])\.json$/;
+const ARCHIVOS = /^(?:cuentas|pagos|creditos|gastos-medicos|mesadas|ciclos|rutinas|maletas|cartelera|resumen|salud)\.json$|^movimientos\/\d{4}-(?:0[1-9]|1[0-2])\.json$/;
 const SOLO_LECTURA = /^(?:resumen|salud)\.json$/;   // los calculan las tareas
 const CARPETAS = ['movimientos'];
 const MAX_BYTES = 900000;

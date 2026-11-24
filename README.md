@@ -18,7 +18,7 @@ llave, que se puede revocar sin tocar nada más. Los datos viven en el repositor
 | `/emparejar.html` | Página para canjear el código | — |
 
 La llave va en el encabezado `Authorization: Bearer <llave>`. Archivos permitidos: `cuentas`, `pagos`, `creditos`,
-`gastos-medicos`, `mesadas`, `ciclos`, `rutinas`, `maletas`, `resumen` y `salud` (`.json`), y
+`gastos-medicos`, `mesadas`, `ciclos`, `rutinas`, `maletas`, `cartelera`, `resumen` y `salud` (`.json`), y
 `movimientos/AAAA-MM.json`. `resumen.json` y `salud.json` solo se leen: los calculan las tareas de `datos`.
 
 ## Configuración en Vercel
