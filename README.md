@@ -15,6 +15,7 @@ llave, que se puede revocar sin tocar nada más. Los datos viven en el repositor
 | `PUT /api/datos?archivo=…` | Guardar `{ contenido, sha, mensaje }`; responde 409 si otro dispositivo lo cambió antes | Dispositivo |
 | `GET /api/resumen` | Saldos, últimos movimientos, sábanas y alertas | Dispositivo o widget |
 | `POST /api/emparejar` | Canjear un código de un solo uso por una llave | Ninguna (el código) |
+| `GET /api/lecturas?vista=biblioteca` | Goodreads para la pestaña Lecturas de Consulta: leyendo, quiero leer, leídos, perfil y desafíos (copia de 10 minutos; `&nuevo=1` lee de nuevo). También `vista=buscar&q=…` y `vista=libro&id=…`. Lee las páginas públicas con `lib/goodreads.js`, que viene de pablocarvallo/lecturas | Dispositivo |
 | `/emparejar.html` | Página para canjear el código | — |
 
 La llave va en el encabezado `Authorization: Bearer <llave>`. Archivos permitidos: `cuentas`, `pagos`, `creditos`,
